@@ -76,7 +76,6 @@ class PolicyGRUWord(nn.Module):
         self.rewards = []
         self.values = []
         self.last_policy = []
-        self.optimizer = None
 
     def forward(self, text_inputs, img_feat, valid_actions):
         embed_text = self._get_embed_text(text_inputs)
@@ -89,6 +88,27 @@ class PolicyGRUWord(nn.Module):
         probs_ = policy_dist.probs.clone()
         self.last_policy.append(probs_.detach().numpy()[0])
         return policy_dist, value
+
+    def _get_embed_text(self, text):
+        _, hidden = self.gru(self.word_embedding(text))
+        return hidden[-1]
+
+
+class ValueFunctionWord(nn.Module):
+
+    def __init__(self, num_tokens, word_emb_size, hidden_size, num_layers=1):
+        super(ValueFunctionWord, self).__init__()
+        self.num_tokens = num_tokens
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.word_embedding = nn.Embedding(num_tokens, word_emb_size)
+        self.gru = nn.GRU(word_emb_size, self.hidden_size, batch_first=True)
+        self.fc = nn.Linear(hidden_size, 1)
+
+    def forward(self, text_inputs, img_feat):
+        embed_text = self._get_embed_text(text_inputs)
+        out = self.fc(embed_text)  # (S,B,num_tokens)
+        return out
 
     def _get_embed_text(self, text):
         _, hidden = self.gru(self.word_embedding(text))
